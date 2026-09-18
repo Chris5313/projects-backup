@@ -1188,64 +1188,132 @@ static constexpr uint64_t HEAP_SCAN_HI = 0xB0000000ull;
 //  - entity+0x30 directly
 //  - entity+offset -> nested object+0x70 (like CharObj proxy)
 // ---------------------------------------------------------------------------
-// v37 identity scanner (BF4-style enumeration, no statics — GW2's runtime
-// statics are dead: GameContext=-1, backyard mgr=0, camera singleton freed).
-// The gameplay dump PROVED the layout: CharObj vtable 0x14228B380 marks every
-// entity, proxy+0x70 is the position (20/20 unanimous), faction string at
-// co+0x28->+0x30->+0x10 (Zombie_*=team1, Plant_*=team0, _AI/=Tur in name=AI).
-// We find entities by their IDENTITY (the vtable qword) via a resumable
-// budgeted heap scan, and let TryAddEntity's strict validation (marker +
-// TypeInfo + proxy) reject everything else. No coord guessing, no flag pool.
-// ---------------------------------------------------------------------------
+// v76: BF4-style PlayerManager enumeration — dump-verified end to end:
+//   manager object (vtable image RVA 0x21E3850) holds a FIXED entity array
+//   at +0xD0, 17 slots of CharObj pointers (dump: 16 live + 1 gap).
+//   BF4/spankerfield walks GameContext -> PlayerManager -> player array.
+//   GW2's context statics are dead, so the manager is found ONCE by its
+//   unique vtable (candidate validated by its array actually containing
+//   CharObjs), then the fixed array is read directly every frame. No
+//   per-entity heap scanning, no coordinate gates, nothing to lose.
+static constexpr uint64_t RVA_ENTMGR_VT    = 0x21E3850;
+static constexpr uint64_t ENTMGR_ARRAY_OFF = 0xD0;
+static constexpr int      ENTMGR_MAX_SLOTS = 17;
+static uint64_t g_entMgr = 0;   // resolved manager instance
+
 static int ReadBackyardEntities()
 {
     if (!g_imgBase || !g_NtRVM) return 0;
 
-    // ---- resumable scan state ------------------------------------------
-    static uint64_t s_cursor = 0;
-    static int      s_hits = 0, s_added = 0, s_rej = 0;
-    static DWORD    s_lastLog = 0;
+    static DWORD s_lastLog = 0;
+    static int   s_mgrFails = 0, s_zeroStreak = 0;
+    int added = 0;
 
-    DWORD t0 = GetTickCount();
-    uint8_t buf[0x8000];
-
-    while (s_cursor < HEAP_SCAN_HI) {
-        // scan one 32KB page-group per iteration; budget-checked each page
-        uint64_t page = s_cursor & ~0xFFFULL;
-        if (!Rd(page, buf, sizeof(buf))) {
-            s_cursor = (page + 0x100000) & ~0xFFFFFULL;   // skip 1MB on fail
-            if (GetTickCount() - t0 > 6) return 0;
-            continue;
+    // ---- stage 1: locate the manager (ONE full sweep, resumable, cached) ----
+    if (!g_entMgr) {
+        static uint64_t s_cursor = 0;
+        static uint64_t s_cand[8];
+        static int      s_candCO[8];   // CharObj-valid slots per candidate
+        static int      s_nCand = 0;
+        DWORD t0 = GetTickCount();
+        uint8_t buf[0x8000];
+        const uint64_t vtMgr = g_imgBase + RVA_ENTMGR_VT;
+        auto SlotPlausible = [](uint64_t v) {
+            return v == 0 || (v > 0x1000000ull && v < 0xB0000000ull && !(v & 3));
+        };
+        while (s_cursor < HEAP_SCAN_HI) {
+            uint64_t page = s_cursor & ~0xFFFULL;
+            if (!Rd(page, buf, sizeof(buf))) {
+                s_cursor = (page + 0x100000) & ~0xFFFFFULL;
+                if (GetTickCount() - t0 > 6) return 0;
+                continue;
+            }
+            for (int off = 0; off + 8 <= (int)sizeof(buf); off += 8) {
+                uint64_t val;
+                memcpy(&val, buf + off, 8);
+                if (val != vtMgr) continue;
+                uint64_t cand = page + off;
+                uint64_t slots[ENTMGR_MAX_SLOTS];
+                if (!Rd(cand + ENTMGR_ARRAY_OFF, slots, sizeof(slots))) continue;
+                bool allOk = true;
+                for (int k = 0; k < ENTMGR_MAX_SLOTS && allOk; k++)
+                    if (!SlotPlausible(slots[k])) allOk = false;
+                if (!allOk) continue;
+                // validate the candidate by counting CharObj vtables in slots
+                int co = 0;
+                for (int k = 0; k < ENTMGR_MAX_SLOTS; k++) {
+                    if (!slots[k]) continue;
+                    uint64_t vt = 0;
+                    if (Rd(slots[k], &vt, 8) && vt == g_vaCharObj) co++;
+                }
+                if (co < 1) continue;   // empty/foreign instance
+                int worst = 0;
+                for (int k = 1; k < 8; k++) if (s_candCO[k] < s_candCO[worst]) worst = k;
+                if (s_nCand < 8) { s_cand[s_nCand] = cand; s_candCO[s_nCand] = co; s_nCand++; }
+                else if (co > s_candCO[worst]) { s_cand[worst] = cand; s_candCO[worst] = co; }
+            }
+            s_cursor = page + sizeof(buf);
+            if (GetTickCount() - t0 > 6) return 0;   // resume next frame
         }
-        for (int off = 0; off + 8 <= (int)sizeof(buf); off += 8) {
-            uint64_t val;
-            memcpy(&val, buf + off, 8);
-            if (val != g_vaCharObj) continue;
-            s_hits++;
-            uint64_t ent = page + off;
-            // dedup + strict validation inside TryAddEntity
-            bool dup = false;
-            EnterCriticalSection(&g_cs);
-            for (int j = 0; j < g_nEnt; j++)
-                if (g_ent[j].charObj == ent) { dup = true; break; }
-            LeaveCriticalSection(&g_cs);
-            if (!dup && TryAddEntity(ent)) s_added++; else if (!dup) s_rej++;
+        // sweep complete: pick the candidate with the most CharObj slots
+        int best = -1, bestCO = 0;
+        for (int k = 0; k < s_nCand; k++)
+            if (s_candCO[k] > bestCO) { bestCO = s_candCO[k]; best = k; }
+        if (best >= 0) {
+            g_entMgr = s_cand[best];
+            char b[96];
+            snprintf(b, sizeof(b), "ENTMGR: locked mgr=%llX coSlots=%d",
+                (unsigned long long)g_entMgr, bestCO);
+            OILog(b);
+        } else {
+            DWORD now = GetTickCount();
+            if (now - s_lastLog > 5000) {
+                s_lastLog = now;
+                OILog("ENTMGR: no manager yet - sweep restarts");
+            }
         }
-        s_cursor = page + sizeof(buf);
-        if (GetTickCount() - t0 > 6) return 0;   // resume next frame
+        s_nCand = 0;
+        s_cursor = HEAP_SCAN_LO;
+        if (!g_entMgr) return 0;
     }
 
-    // sweep complete
-    s_cursor = HEAP_SCAN_LO;
+    // ---- stage 2: read the FIXED array every frame (the BF4 walk) ----------
+    uint64_t slots[ENTMGR_MAX_SLOTS];
+    if (!Rd(g_entMgr + ENTMGR_ARRAY_OFF, slots, sizeof(slots))) {
+        if (++s_mgrFails > 30) {   // ~0.5 s of dead memory: map changed?
+            OILog("ENTMGR: array unreadable - re-locking manager");
+            g_entMgr = 0; s_mgrFails = 0;
+        }
+        return 0;
+    }
+    s_mgrFails = 0;
+
+    int live = 0;
+    for (int k = 0; k < ENTMGR_MAX_SLOTS; k++) {
+        uint64_t ent = slots[k];
+        if (!ent || ent < 0x1000000ull || ent > 0xB0000000ull || (ent & 3)) continue;
+        live++;
+        if (TryAddEntity(ent)) added++;
+    }
+
+    // reused-memory guard: slots look populated but NEVER validate as
+    // entities for ~5 s -> the manager object was recycled, re-lock
+    if (live > 0 && g_nEnt == 0) {
+        if (++s_zeroStreak > 300) {
+            OILog("ENTMGR: slots never validate - re-locking manager");
+            g_entMgr = 0; s_zeroStreak = 0;
+        }
+    } else s_zeroStreak = 0;
+
     DWORD now = GetTickCount();
     if (now - s_lastLog > 5000) {
         s_lastLog = now;
-        char b[160];
-        snprintf(b, sizeof(b), "ENTSCAN: hits=%d added=%d rej=%d total=%d", s_hits, s_added, s_rej, g_nEnt);
+        char b[128];
+        snprintf(b, sizeof(b), "ENTMGR: mgr=%llX live=%d total=%d",
+            (unsigned long long)g_entMgr, live, g_nEnt);
         OILog(b);
-        s_hits = 0; s_added = 0; s_rej = 0;
     }
-    return s_added;
+    return added;
 }
 
 
