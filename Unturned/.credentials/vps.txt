@@ -1,0 +1,23 @@
+=== VPS ===
+IP: 206.245.132.174
+User: root
+Pass: 697cHC8z4v3t2x5hTijwn10V
+SSH Key: C:/Users/Shadow/.ssh/id_vps
+Provider: servers.guru
+API Key: _jeGO0BOG-pHP4a_k_yxQAsgJLBjrqX-7-7djg53t7Y
+Server ID: 19302
+Expires: August 09, 2026
+
+=== Discord Bot ===
+Token: MTUyNDMzMDE1NTE0MzcyOTI0Mw.GYNRS3.1TpfghErdZqfWmtI_wrEFIL_-XCAGGrVsOWk2k
+Prefix: .
+Allowed Users: 1188045141227868191, 1452528333953958048
+
+=== KeyAuth ===
+Seller Key: 40d501c3d6a6eadf12261a16e9940928
+Owner ID: qqOqntgNCA
+App Secret: 9bb10c9237ecaae74733638b39b0fe0e9d825e7577e431811003402065dd8506
+
+=== Download Auth ===
+Secret: ic_dl_s3cur3_2025_v2
+Error Webhook: https://discord.com/api/webhooks/1525207200015056926/N3KaIoHg1Oe3Ia3HIzLbsMmVG8GAqOLgYc5fKg7CPgmq72zvE...

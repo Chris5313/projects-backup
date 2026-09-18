@@ -1,0 +1,4 @@
+# excluded from backup: 28GB game dumps (re-creatable), WDK (re-downloadable from Microsoft nuget)
+PVZGW2/eaac/
+PVZGW2/tools/wdk/
+PVZGW2/tools/wdk_x64.nupkg

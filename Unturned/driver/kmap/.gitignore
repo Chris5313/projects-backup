@@ -1,0 +1,6 @@
+x64/
+*.user
+*.aps
+.vs/
+build_out/
+kmap/

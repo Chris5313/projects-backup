@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{471D6236-0558-4836-A6B9-7FDE68A46F6C}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>HAMASCLIENT</RootNamespace>
+    <AssemblyName>HAMASCLIENT</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <LangVersion>9.0</LangVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>..\lib\Assembly-CSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="com.rlabrecque.steamworks.net">
+      <HintPath>..\lib\com.rlabrecque.steamworks.net.dll</HintPath>
+    </Reference>
+    <Reference Include="HighlightingSystem">
+      <HintPath>..\lib\HighlightingSystem.dll</HintPath>
+    </Reference>
+    <Reference Include="SDG.Glazier.Runtime">
+      <HintPath>..\lib\SDG.Glazier.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="SDG.NetPak.Runtime">
+      <HintPath>..\lib\SDG.NetPak.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="SDG.NetTransport">
+      <HintPath>..\lib\SDG.NetTransport.dll</HintPath>
+    </Reference>
+    <Reference Include="System">
+      <HintPath>..\lib\System.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core">
+      <HintPath>..\lib\System.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.Postprocessing.Runtime">
+      <HintPath>..\lib\Unity.Postprocessing.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.AudioModule">
+      <HintPath>..\lib\UnityEngine.AudioModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>..\lib\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>..\lib\UnityEngine.ImageConversionModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>..\lib\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>..\lib\UnityEngine.InputLegacyModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>..\lib\UnityEngine.ParticleSystemModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>..\lib\UnityEngine.PhysicsModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>..\lib\UnityEngine.ScreenCaptureModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>..\lib\UnityEngine.TextRenderingModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.VehiclesModule">
+      <HintPath>..\lib\UnityEngine.VehiclesModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEx">
+      <HintPath>..\lib\UnityEx.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <AppDesigner Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="hamaslogo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AchievementsUnlocker.cs" />
+    <Compile Include="AddAutoPickupItemWindow.cs" />
+    <Compile Include="AddItemWindow.cs" />
+    <Compile Include="AdminNameDetector.cs" />
+    <Compile Include="AimbotConfig.cs" />
+    <Compile Include="AimbotTab.cs" />
+    <Compile Include="AimbotUtil.cs" />
+    <Compile Include="AimObjective.cs" />
+    <Compile Include="AimSorting.cs" />
+    <Compile Include="AimSphereOptions.cs" />
+    <Compile Include="AirhookMarker.cs" />
+    <Compile Include="AnimationState.cs" />
+    <Compile Include="AnimationType.cs" />
+    <Compile Include="ArithmeticOperand.cs" />
+    <Compile Include="ArmorCalculator.cs" />
+    <Compile Include="AssemblyGuard.cs" />
+    <Compile Include="AssetEntry.cs" />
+    <Compile Include="AssetType.cs" />
+    <Compile Include="AttributeRegistry.cs" />
+    <Compile Include="AutomationBot.cs" />
+    <Compile Include="AvatarSpyMode.cs" />
+    <Compile Include="BarricadePlacementHook.cs" />
+    <Compile Include="BindableVariable.cs" />
+    <Compile Include="BindInputType.cs" />
+    <Compile Include="BoolConditionDelegate.cs" />
+    <Compile Include="BoolOperandEditor.cs" />
+    <Compile Include="BoolOption.cs" />
+    <Compile Include="Bootstrapper.cs" />
+    <Compile Include="ByteArrayStorage.cs" />
+    <Compile Include="ByteReader.cs" />
+    <Compile Include="CarepackageTracker.cs" />
+    <Compile Include="ChamWireframeComponent.cs" />
+    <Compile Include="ChatSpammer.cs" />
+    <Compile Include="ClothingCategory.cs" />
+    <Compile Include="ColorChangedHandler.cs" />
+    <Compile Include="ColorConfig.cs" />
+    <Compile Include="ColorSetting.cs" />
+    <Compile Include="ConfigBindAttribute.cs" />
+    <Compile Include="ConfigCategoryGroup.cs" />
+    <Compile Include="ConfigManager.cs" />
+    <Compile Include="ConnectionLogEntry.cs" />
+    <Compile Include="ConsoleTab.cs" />
+    <Compile Include="CoroutineHost.cs" />
+    <Compile Include="CrosshairHook.cs" />
+    <Compile Include="CrosshairStyle.cs" />
+    <Compile Include="CursorHooks.cs" />
+    <Compile Include="CycleDirection.cs" />
+    <Compile Include="DamageHitmark.cs" />
+    <Compile Include="DAnimationManager.cs" />
+    <Compile Include="DCustomModelType.cs" />
+    <Compile Include="DelayedBullet.cs" />
+    <Compile Include="DetourHook.cs" />
+    <Compile Include="DFBXLoader.cs" />
+    <Compile Include="DrawEntry.cs" />
+    <Compile Include="DropdownState.cs" />
+    <Compile Include="DTungTungSahurModel.cs" />
+    <Compile Include="DxVehSpinType.cs" />
+    <Compile Include="EasingType.cs" />
+    <Compile Include="EffectManagerHooks.cs" />
+    <Compile Include="EmptyClass.cs" />
+    <Compile Include="EmptyEnum.cs" />
+    <Compile Include="EmptyEnumStub.cs" />
+    <Compile Include="EmptyHolderStub.cs" />
+    <Compile Include="EmptyMarkerClass.cs" />
+    <Compile Include="EmptyPlaceholder.cs" />
+    <Compile Include="EmptyStaticClass.cs" />
+    <Compile Include="EmptyStaticMarkerClass.cs" />
+    <Compile Include="EmptyStaticUtil.cs" />
+    <Compile Include="EmptyStub.cs" />
+    <Compile Include="EnumExtensions.cs" />
+    <Compile Include="EnumOperandEditor.cs" />
+    <Compile Include="EnumOption.cs" />
+    <Compile Include="EnumSelector.cs" />
+    <Compile Include="EnumUtil.cs" />
+    <Compile Include="EspCategories.cs" />
+    <Compile Include="EspCategory.cs" />
+    <Compile Include="EspCategoryAction.cs" />
+    <Compile Include="EspDrawer.cs" />
+    <Compile Include="EspManager.cs" />
+    <Compile Include="EspTextEntry.cs" />
+    <Compile Include="ExitVehicleHook.cs" />
+    <Compile Include="FeatureTabBase.cs" />
+    <Compile Include="FieldRef.cs" />
+    <Compile Include="FloatOperand.cs" />
+    <Compile Include="FloatOperandOperation.cs" />
+    <Compile Include="FontManager.cs" />
+    <Compile Include="FontSelectorWindow.cs" />
+    <Compile Include="FovCircleRenderer.cs" />
+    <Compile Include="FovCircleSetting.cs" />
+    <Compile Include="FpsCounter.cs" />
+    <Compile Include="FreeCamera.cs" />
+    <Compile Include="GameLoopDriver.cs" />
+    <Compile Include="GlazierButtonClickGuard.cs" />
+    <Compile Include="GuiArea.cs" />
+    <Compile Include="GuiAreaState.cs" />
+    <Compile Include="GuiElementType.cs" />
+    <Compile Include="GuiHost.cs" />
+    <Compile Include="GuiSection.cs" />
+    <Compile Include="GuiStyles.cs" />
+    <Compile Include="HamasNetwork.cs" />
+    <Compile Include="HookMethodAttribute.cs" />
+    <Compile Include="HudOverlayDrawer.cs" />
+    <Compile Include="HwidMode.cs" />
+    <Compile Include="HwidSpoofer.cs" />
+    <Compile Include="HwidSpoofHook.cs" />
+    <Compile Include="InGameHooks.cs" />
+    <Compile Include="InitializeAttribute.cs" />
+    <Compile Include="InteractableItemPatches.cs" />
+    <Compile Include="InteractableTracker.cs" />
+    <Compile Include="IntOption.cs" />
+    <Compile Include="ItemInfo.cs" />
+    <Compile Include="ItemManagerHooks.cs" />
+    <Compile Include="ItemSortConfig.cs" />
+    <Compile Include="ItemSortFilterOption.cs" />
+    <Compile Include="ItemStateTextureCache.cs" />
+    <Compile Include="Keybind.cs" />
+    <Compile Include="KeybindCapture.cs" />
+    <Compile Include="KeybindManager.cs" />
+    <Compile Include="KeybindsTab.cs" />
+    <Compile Include="LeanSpaceHook.cs" />
+    <Compile Include="LevelLightingPatches.cs" />
+    <Compile Include="Limb.cs" />
+    <Compile Include="LinecastUtils.cs" />
+    <Compile Include="LocalizationAsset.cs" />
+    <Compile Include="LocalPlayerChams.cs" />
+    <Compile Include="Logger.cs" />
+    <Compile Include="LoggerUpdater.cs" />
+    <Compile Include="LogPatches.cs" />
+    <Compile Include="MapUiPatch.cs" />
+    <Compile Include="MathUtil.cs" />
+    <Compile Include="MenuGuiHelper.cs" />
+    <Compile Include="MenuState.cs" />
+    <Compile Include="MenuUpdateDriver.cs" />
+    <Compile Include="MethodHookAttribute.cs" />
+    <Compile Include="MethodInvokeOperand.cs" />
+    <Compile Include="MethodInvoker.cs" />
+    <Compile Include="MiscActions.cs" />
+    <Compile Include="MiscConfig.cs" />
+    <Compile Include="MiscTab.cs" />
+    <Compile Include="MiscUpdateHooks.cs" />
+    <Compile Include="ModuleBytesHolder.cs" />
+    <Compile Include="MoveType.cs" />
+    <Compile Include="NearbyDropsUiPatch.cs" />
+    <Compile Include="NearbyItemsWindow.cs" />
+    <Compile Include="NetPakWriterDelegate.cs" />
+    <Compile Include="NightVisionType.cs" />
+    <Compile Include="NetworkTab.cs" />
+    <Compile Include="OperandBase.cs" />
+    <Compile Include="OperandOperation.cs" />
+    <Compile Include="OptionBase.cs" />
+    <Compile Include="OtherTab.cs" />
+    <Compile Include="OverlayDrawer.cs" />
+    <Compile Include="OverrideManager.cs" />
+    <Compile Include="OverridesTab.cs" />
+    <Compile Include="PacketWriter.cs" />
+    <Compile Include="PauseMenuUiPatch.cs" />
+    <Compile Include="PlaceholderEnum.cs" />
+    <Compile Include="PlaceholderMonoBehaviour.cs" />
+    <Compile Include="PlayerBones.cs" />
+    <Compile Include="PlayerEquipmentPatches.cs" />
+    <Compile Include="PlayerExtensions.cs" />
+    <Compile Include="PlayerFinderTab.cs" />
+    <Compile Include="PlayerHooks.cs" />
+    <Compile Include="PlayerInputOverride.cs" />
+    <Compile Include="PlayerInteractHooks.cs" />
+    <Compile Include="PlayerLifePatches.cs" />
+    <Compile Include="PlayerLifeUiHooks.cs" />
+    <Compile Include="PlayerLookHooks.cs" />
+    <Compile Include="PlayerMovementHook.cs" />
+    <Compile Include="PlayerPriorityManager.cs" />
+    <Compile Include="PlayerRelation.cs" />
+    <Compile Include="PlayersTab.cs" />
+    <Compile Include="PlayerUiHook.cs" />
+    <Compile Include="PlayTimeScanner.cs" />
+    <Compile Include="PostProcessDebugPatches.cs" />
+    <Compile Include="ProjectileType.cs" />
+    <Compile Include="PropertyRef.cs" />
+    <Compile Include="ProviderHooks.cs" />
+    <Compile Include="QuadCorners.cs" />
+    <Compile Include="RandomConeUtil.cs" />
+    <Compile Include="ReflectedField.cs" />
+    <Compile Include="ReflectedMethod.cs" />
+    <Compile Include="ReflectedStaticMember.cs" />
+    <Compile Include="ReflectionUtil.cs" />
+    <Compile Include="Resources.cs" />
+    <Compile Include="SaveableField.cs" />
+    <Compile Include="SaveableNameAttribute.cs" />
+    <Compile Include="SaveValueType.cs" />
+    <Compile Include="SceneLoadHook.cs" />
+    <Compile Include="ScreenEdge.cs" />
+    <Compile Include="ScreenshotManager.cs" />
+    <Compile Include="ScrollState.cs" />
+    <Compile Include="ServerPlayerQuery.cs" />
+    <Compile Include="ServerRejectionHandler.cs" />
+    <Compile Include="SilentAim.cs" />
+    <Compile Include="Settings.cs" />
+    <Compile Include="SettingsTab.cs" />
+    <Compile Include="SilentAimType.cs" />
+    <Compile Include="SimpleAction.cs" />
+    <Compile Include="SimpleDelegate.cs" />
+    <Compile Include="SkeletonBones.cs" />
+    <Compile Include="SkinChangerTab.cs" />
+    <Compile Include="SkinInfo.cs" />
+    <Compile Include="SkinsManager.cs" />
+    <Compile Include="SpherePointGenerator.cs" />
+    <Compile Include="SpyWarningWindow.cs" />
+    <Compile Include="StaticArrayInitData.cs" />
+    <Compile Include="StaticUtilityStub.cs" />
+    <Compile Include="StepMarker.cs" />
+    <Compile Include="StepStyle.cs" />
+    <Compile Include="StringConfigOption.cs" />
+    <Compile Include="StringRefDelegate.cs" />
+    <Compile Include="StructurePlacementPatch.cs" />
+    <Compile Include="TabCount.cs" />
+    <Compile Include="TargetInfoWindow.cs" />
+    <Compile Include="TargetType.cs" />
+    <Compile Include="TextCase.cs" />
+    <Compile Include="TextOutlineStyle.cs" />
+    <Compile Include="TextureUtil.cs" />
+    <Compile Include="Tracer.cs" />
+    <Compile Include="TracerRenderer.cs" />
+    <Compile Include="TriStateOverride.cs" />
+    <Compile Include="UnturnedSettingsConfig.cs" />
+    <Compile Include="UnusedEmptyClass.cs" />
+    <Compile Include="UpdateThrottler.cs" />
+    <Compile Include="UseableGunHooks.cs" />
+    <Compile Include="UseableMeleeHooks.cs" />
+    <Compile Include="VehicleActionDelegate.cs" />
+    <Compile Include="VehicleBehaviour.cs" />
+    <Compile Include="VehicleRecoverPatch.cs" />
+    <Compile Include="VisualsTab.cs" />
+    <Compile Include="WalkingTracerState.cs" />
+    <Compile Include="WeaponInfoWindow.cs" />
+    <Compile Include="WindowBase.cs" />
+    <Compile Include="WindowDragger.cs" />
+    <Compile Include="WorldTab.cs" />
+    <Compile Include="WorldToScreenUtil.cs" />
+    <Compile Include="ZombiePatches.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="benjamin_model.fbx" />
+    <EmbeddedResource Include="benjamin_model_texture.png" />
+    <EmbeddedResource Include="tungtungsahur_texture.png" />
+    <EmbeddedResource Include="tungtung_model.fbx" />
+    <EmbeddedResource Include="tungtung_model_texture.png" />
+    <EmbeddedResource Include="paradox_hitsound.wav" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

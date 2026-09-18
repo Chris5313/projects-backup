@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project outputDir="bin\Release\obf_out" baseDir="." xmlns="http://confuser.codeplex.com">
+  <probePath>C:\Program Files (x86)\Steam\steamapps\common\Unturned\Unturned_Data\Managed</probePath>
+  <!--
+    Bridge/Unity-facing names (Runtime/State/Ticker/FreeCam/HitboxExpander + their
+    members) are preserved via [Obfuscation(Exclude = true)] attributes in source,
+    NOT via rules here. ConfuserEx2's rename protection skips any definition marked
+    Exclude=true (unless forceRename), so class/method/field names stay intact for
+    mono reflection and Unity magic-method dispatch.
+  -->
+  <module path="bin\Release\gatywareclient_obf_input.dll">
+    <rule pattern="true" inherit="false" preset="none">
+      <protection id="rename" />
+      <protection id="ctrl flow" />
+      <protection id="constants" />
+      <!-- anti tamper / anti debug / anti dump / anti ildasm / invalid metadata are
+           intentionally ABSENT: they break byte-level mono_image_open_from_data injection. -->
+    </rule>
+  </module>
+</project>

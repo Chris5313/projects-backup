@@ -1,0 +1,12 @@
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\bin\Release\gatywareclient.dll
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\bin\Release\gatywareclient.pdb
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\obj\Release\gatyware.csproj.AssemblyReference.cache
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\obj\Release\gatyware.csproj.CoreCompileInputs.cache
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\obj\Release\gatywareclient.dll
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\obj\Release\gatywareclient.pdb
+C:\Users\Chirs\Documents\IC2\Unturned\israeliclient 1.1\bin\Release\gatywareclient.dll
+C:\Users\Chirs\Documents\IC2\Unturned\israeliclient 1.1\bin\Release\gatywareclient.pdb
+C:\Users\Chirs\Documents\IC2\Unturned\israeliclient 1.1\obj\Release\gatyware.csproj.AssemblyReference.cache
+C:\Users\Chirs\Documents\IC2\Unturned\israeliclient 1.1\obj\Release\gatyware.csproj.CoreCompileInputs.cache
+C:\Users\Chirs\Documents\IC2\Unturned\israeliclient 1.1\obj\Release\gatywareclient.dll
+C:\Users\Chirs\Documents\IC2\Unturned\israeliclient 1.1\obj\Release\gatywareclient.pdb

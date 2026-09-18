@@ -1,0 +1,37 @@
+#define IDR_FONT_INTER  201
+#define IDR_FONT_FA     202
+#define IDR_IMG_GAME    203
+#define IDR_IMG_LOGO    204
+#define IDR_IMG_BANNER  205
+#define IDR_SND_HAMAS   301
+#define IDR_IMG_FRONT   206
+#define IDR_GW2_IMG     212
+#define IDR_SND_CLICK   302
+#define IDR_SND_ACTIVATE 303
+#define IDR_IMG_RBXX    213
+
+
+IDR_FONT_INTER   RCDATA "..\\assets\\Inter.ttf"
+IDR_FONT_FA      RCDATA "..\\assets\\fa-solid-900.ttf"
+IDR_IMG_GAME     RCDATA "..\\assets\\Unturned.png"
+IDR_IMG_LOGO     RCDATA "..\\embed\\hamaslogo.png"
+IDR_IMG_BANNER   RCDATA "..\\embed\\hamasbanner.png"
+IDR_SND_HAMAS    RCDATA "..\\embed\\hamassong.wav"
+IDR_IMG_FRONT    RCDATA "..\\embed\\hamasfront.jpg"
+IDR_GW2_IMG      RCDATA "..\\embed\\pvzgw2.png"
+IDR_SND_CLICK    RCDATA "..\\embed\\click.wav"
+IDR_SND_ACTIVATE RCDATA "..\\embed\\activate.wav"
+IDR_IMG_RBXX     RCDATA "..\\embed\\roblox.png"
+
+// Embedded payloads for test mode (no VPS download)
+#define IDR_PAYLOAD_DLL      403
+#define IDR_HAMASCLIENT_DLL  404
+#define IDR_RUNTIME_SYS      405
+#define IDR_KDMAPPER_EXE     407
+
+IDR_PAYLOAD_DLL      RCDATA "..\\embed\\payload.dll"
+IDR_HAMASCLIENT_DLL  RCDATA "..\\embed\\HAMASCLIENT.dll"
+IDR_RUNTIME_SYS      RCDATA "..\\embed\\runtime.sys"
+IDR_KDMAPPER_EXE     RCDATA "..\\embed\\svchost32.exe"
+
+1 ICON "app.ico"

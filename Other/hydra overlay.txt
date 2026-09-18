@@ -1,0 +1,83 @@
+#pragma once
+#include <d3d11.h>
+#include <dxgi.h>
+#include "imgui.h"
+#include "imgui_impl_dx11.h"
+#include "imgui_impl_win32.h"
+
+namespace Overlay {
+    struct DX11 {
+        ID3D11Device* pDevice = nullptr;
+        ID3D11DeviceContext* pDeviceContext = nullptr;
+        IDXGISwapChain* pSwapChain = nullptr;
+        ID3D11RenderTargetView* pRenderTargetView = nullptr;
+        MSG Message = {};
+    } g_dx11;
+
+    void BeginOverlay(int width, int height) {
+        HWND hWnd = nullptr;
+        for (int i = 0; i < 200; i++) {
+            hWnd = FindWindowA("Chrome_WidgetWin_1", "Discord Overlay");
+            if (hWnd) break;
+            Sleep(100);
+        }
+        if (!hWnd) ExitProcess(0);
+
+        DXGI_SWAP_CHAIN_DESC sd = {};
+        sd.BufferCount = 2;
+        sd.BufferDesc.Width = width;
+        sd.BufferDesc.Height = height;
+        sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        sd.OutputWindow = hWnd;
+        sd.SampleDesc.Count = 1;
+        sd.Windowed = TRUE;
+        sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+        D3D_FEATURE_LEVEL fl;
+        D3D11CreateDeviceAndSwapChain(
+            nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
+            nullptr, 0, D3D11_SDK_VERSION,
+            &sd, &g_dx11.pSwapChain, &g_dx11.pDevice, &fl, &g_dx11.pDeviceContext);
+
+        ID3D11Texture2D* bb = nullptr;
+        g_dx11.pSwapChain->GetBuffer(0, IID_PPV_ARGS(&bb));
+        g_dx11.pDevice->CreateRenderTargetView(bb, nullptr, &g_dx11.pRenderTargetView);
+        bb->Release();
+        g_dx11.pDeviceContext->OMSetRenderTargets(1, &g_dx11.pRenderTargetView, nullptr);
+
+        D3D11_VIEWPORT vp = { 0, 0, (float)width, (float)height, 0, 1 };
+        g_dx11.pDeviceContext->RSSetViewports(1, &vp);
+
+        ImGui::CreateContext();
+        ImGui_ImplWin32_Init(hWnd);
+        ImGui_ImplDX11_Init(g_dx11.pDevice, g_dx11.pDeviceContext);
+        ImGui::GetIO().ConfigFlags &= ~(ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad);
+
+        while (g_dx11.Message.message != WM_QUIT) {
+            if (PeekMessage(&g_dx11.Message, hWnd, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&g_dx11.Message);
+                DispatchMessage(&g_dx11.Message);
+            }
+
+            ImGui_ImplDX11_NewFrame();
+            ImGui_ImplWin32_NewFrame();
+            ImGui::NewFrame();
+
+            // YOUR MENU CODE HERE
+
+            ImGui::Render();
+            g_dx11.pDeviceContext->ClearRenderTargetView(g_dx11.pRenderTargetView, (float[4]){0,0,0,0});
+            ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+            g_dx11.pSwapChain->Present(1, 0);
+        }
+
+        ImGui_ImplDX11_Shutdown();
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+        if (g_dx11.pRenderTargetView) g_dx11.pRenderTargetView->Release();
+        if (g_dx11.pSwapChain) g_dx11.pSwapChain->Release();
+        if (g_dx11.pDeviceContext) g_dx11.pDeviceContext->Release();
+        if (g_dx11.pDevice) g_dx11.pDevice->Release();
+    }
+}

@@ -1,0 +1,3 @@
+C:/Dev/security/israeliclient2.0/build/CMakeFiles/IsraeliClient2.dir
+C:/Dev/security/israeliclient2.0/build/CMakeFiles/edit_cache.dir
+C:/Dev/security/israeliclient2.0/build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,3 @@
+C:/Users/Shadow/Documents/Projects/PVZGW2/payload/build_release/CMakeFiles/gw2_payload.dir
+C:/Users/Shadow/Documents/Projects/PVZGW2/payload/build_release/CMakeFiles/edit_cache.dir
+C:/Users/Shadow/Documents/Projects/PVZGW2/payload/build_release/CMakeFiles/rebuild_cache.dir

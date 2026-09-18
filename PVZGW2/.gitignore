@@ -1,0 +1,22 @@
+# build outputs
+build/
+build_out/
+*.obj
+*.dll
+*.exe
+*.sys
+*.lib
+*.exp
+*.pdb
+*.ilk
+
+# preview artifacts
+*.bmp
+*.log
+full_log.txt
+rows_after.txt
+
+# editor cruft
+.vs/
+.vscode/
+*.user

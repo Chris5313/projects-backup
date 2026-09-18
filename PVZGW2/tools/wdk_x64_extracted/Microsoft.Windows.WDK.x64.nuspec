@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Microsoft.Windows.WDK.x64</id>
+    <version>10.0.26100.1</version>
+    <title>Windows WDK</title>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <license type="file">LICENSE.txt</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <projectUrl>https://aka.ms/WinSDKProjectURL</projectUrl>
+    <iconUrl>https://aka.ms/WinSDKIconURL</iconUrl>
+    <description>The X64 WDK enables driver development specifically for X64 target platforms.</description>
+    <summary>The X64 WDK enables driver development specifically for X64 target platforms.</summary>
+    <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+    <tags>WDK, SDK, native, VC++</tags>
+    <dependencies>
+      <dependency id="Microsoft.Windows.SDK.cpp.x64" version="[10.0.26100.1]" />
+    </dependencies>
+  </metadata>
+</package>

@@ -1,0 +1,24 @@
+# ninja log v6
+85	921	8061123884270893	CMakeFiles/IsraeliClient2.dir/src/theme.cpp.obj	3ab89aa0dc647226
+93	933	8061123884351369	CMakeFiles/IsraeliClient2.dir/src/theme2.cpp.obj	2f9915d95ce9e330
+35	946	8061123883760084	CMakeFiles/IsraeliClient2.dir/src/dllmain.cpp.obj	ea10d0b8ef92d4f7
+43	1336	8061123883845339	CMakeFiles/IsraeliClient2.dir/src/dx11_hook.cpp.obj	d21ac09d1322608d
+50	1801	8061123883915454	CMakeFiles/IsraeliClient2.dir/src/esp_preview.cpp.obj	7da4a9ed4a1f29e5
+67	1819	8061123884085721	CMakeFiles/IsraeliClient2.dir/src/menu2.cpp.obj	19ace5a2ba4e6f71
+58	2427	8061123884000534	CMakeFiles/IsraeliClient2.dir/src/menu.cpp.obj	330cf61f68f88044
+24	2609	8061123883654675	CMakeFiles/IsraeliClient2.dir/src/components.cpp.obj	dda6c866dfd0d4a2
+2428	3679	8061123907700362	CMakeFiles/IsraeliClient2.dir/vendor/minhook/src/buffer.c.obj	3cd9b2756ad7b3f0
+1802	3754	8061123901433524	CMakeFiles/IsraeliClient2.dir/vendor/imgui/backends/imgui_impl_dx11.cpp.obj	c87a5228d99f0f5d
+76	3784	8061123884185898	CMakeFiles/IsraeliClient2.dir/src/texture_loader.cpp.obj	952410a1f1bd1e0b
+1820	3853	8061123901619394	CMakeFiles/IsraeliClient2.dir/vendor/imgui/backends/imgui_impl_win32.cpp.obj	615709dfd5ae4b95
+2609	3854	8061123909512528	CMakeFiles/IsraeliClient2.dir/vendor/minhook/src/hde/hde32.c.obj	be83bbdfde27c0af
+3679	4885	8061123920213182	CMakeFiles/IsraeliClient2.dir/vendor/minhook/src/hde/hde64.c.obj	30cd1c04176ae591
+3755	4905	8061123920967101	CMakeFiles/IsraeliClient2.dir/vendor/minhook/src/hook.c.obj	30761f191237ad0f
+30	5012	8061123883714758	CMakeFiles/IsraeliClient2.dir/src/components2.cpp.obj	de1df0313d952a0f
+3785	5066	8061123921272899	CMakeFiles/IsraeliClient2.dir/vendor/minhook/src/trampoline.c.obj	63c1ec1a2b767d01
+934	5313	8061123892762770	CMakeFiles/IsraeliClient2.dir/vendor/imgui/imgui_draw.cpp.obj	8bc0feecec4b18fb
+946	5317	8061123892883099	CMakeFiles/IsraeliClient2.dir/vendor/imgui/imgui_tables.cpp.obj	5586942bb74da34c
+1338	6506	8061123896795257	CMakeFiles/IsraeliClient2.dir/vendor/imgui/imgui_widgets.cpp.obj	ddc2c586735bdbc9
+923	6559	8061123892647533	CMakeFiles/IsraeliClient2.dir/vendor/imgui/imgui.cpp.obj	ffef4c0f74d7332d
+6560	6764	8061123949013535	israeliclient2.dll	b09bea0cfeaba78
+6560	6764	8061123949013535	israeliclient2.lib	b09bea0cfeaba78

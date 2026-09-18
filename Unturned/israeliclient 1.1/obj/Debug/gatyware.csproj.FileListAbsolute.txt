@@ -1,0 +1,6 @@
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\bin\Debug\gatywareclient.dll
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\bin\Debug\gatywareclient.pdb
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\obj\Debug\gatyware.csproj.AssemblyReference.cache
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\obj\Debug\gatyware.csproj.CoreCompileInputs.cache
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\obj\Debug\gatywareclient.dll
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\gatyware\obj\Debug\gatywareclient.pdb

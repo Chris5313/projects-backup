@@ -1,0 +1,6 @@
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\israeliclient\obj\Release\israeliclient.csproj.AssemblyReference.cache
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\israeliclient\obj\Release\israeliclient.csproj.CoreCompileInputs.cache
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\israeliclient\bin\Release\israeliclient.dll
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\israeliclient\bin\Release\israeliclient.pdb
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\israeliclient\obj\Release\israeliclient.dll
+C:\Users\roblo\Downloads\loader-cpp\loader-cpp\projects\israeliclient\obj\Release\israeliclient.pdb
