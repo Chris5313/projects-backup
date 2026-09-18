@@ -149,11 +149,11 @@ static bool TryAddEntity(uint64_t entPtr)
     if (!Rd(entPtr, &vtable, 8) || vtable != g_vaCharObj)
         return false;
     
-    // Validate marker
-    uint32_t marker = 0;
-    if (!Rd(entPtr + CO_MARKER, &marker, 4) || (marker & 0xFF00) != 0x1000)
-        return false;
-    
+    // v75: NO marker gate here. The +0x18 marker is a spawn counter
+    // (dump: 0x100E/0x100F on live objects) that climbs ALL SESSION — the
+    // 0x1000-mask silently rejected every add once ids passed 0x10FF
+    // (log: ENTSCAN hits=39 added=0). vtable + TypeInfo + proxy already
+    // prove identity (dump: 36/36 unanimous).
     // Validate TypeInfo
     uint64_t ti = 0;
     if (!Rd(entPtr + CO_TI, &ti, 8) || ti != g_vaTI)
@@ -316,8 +316,7 @@ static int ScanHeapRange()
 }
 
 // Forward declaration
-static int ReadBackyardEntities();
-static inline bool IsBackyardCoord(float x, float y, float z);   // v36b: per-frame yard-bounds check
+static int ReadBackyardEntities();   // v75 identity scanner
 
 // Master discovery function - tries all sources
 static int ReadEntitiesFromAllSources()
@@ -763,8 +762,10 @@ void OnFrame()
         // -250..-50). Their junk reads (log: (-0.0,0.0,43.8) — a HEIGHT, not
         // a position) pass generic bounds and drew tiny boxes at nonsense
         // screen spots. Yard rows must stay yard-shaped every frame.
+        // v75: yard-bounds gate REMOVED — it froze boxes at the yard volume
+        // edge (tracking loss) and the entity's identity is already proven by
+        // vtable+TI; coordinate gating added nothing but stuck boxes.
         bool isBk = (snap[i].state > 0 && snap[i].state < 0x1000);
-        if (isBk && !IsBackyardCoord(p[0], p[1], p[2])) inBounds = false;
         bool goodPos = rdOk && p[0] == p[0] && p[1] == p[1] && p[2] == p[2] &&
                        inBounds &&
                        (p[0] != 0.f || p[1] != 0.f || p[2] != 0.f);
@@ -810,9 +811,11 @@ void OnFrame()
         // Skip marker check for backyard entities (they don't have CharObj markers)
         bool isBackyard = (snap[i].state > 0 && snap[i].state < 0x1000);
         if (!isBackyard) {
-            // First validate charObj is still alive (marker check)
-            uint32_t marker = 0;
-            if (!Rd(snap[i].charObj + CO_MARKER, &marker, 4) || (marker & 0xFF00) != 0x1000) {
+            // v75: liveness via vtable (the +0x18 marker is a spawn counter
+            // that drifts past 0x1000 late-session — it flagged LIVE entities
+            // as dead). Recycled heap rewrites the vtable qword at +0.
+            uint64_t vt = 0;
+            if (!Rd(snap[i].charObj, &vt, 8) || vt != g_vaCharObj) {
                 // charObj is dead/recycled - mark entity for removal
                 snap[i].team = -2; // special "dead" marker
                 continue;
@@ -846,13 +849,15 @@ void OnFrame()
                 keep = true;
             }
         } else {
-            // CharObj entity - check marker
-            uint32_t marker = 0;
-            if (Rd(snap[i].charObj + CO_MARKER, &marker, 4) && (marker & 0xFF00) == 0x1000) {
+            // v75: liveness = vtable STILL the CharObj vtable (recycled heap
+            // rewrites the vtable qword at +0). The +0x18 marker is a spawn
+            // counter that drifts past the old 0x1000 mask late-session and
+            // purged live rows (table drain 37->14 in the log).
+            uint64_t vt = 0;
+            if (Rd(snap[i].charObj, &vt, 8) && vt == g_vaCharObj) {
                 keep = true;
             }
         }
-        
         if (keep) {
             if (writeIdx != i) snap[writeIdx] = snap[i];
             writeIdx++;
@@ -1168,17 +1173,13 @@ static constexpr uint64_t BACKYARD_LIST_START = 0x10;
 static constexpr uint64_t BACKYARD_LIST_END = 0x58;
 // Backyard coordinate bounds (from camera analysis)
 // Camera was at (206.8, 65.4, -177.0) - entities should be similar
-static inline bool IsBackyardCoord(float x, float y, float z)
-{
-    // All three must be non-zero and in valid ranges
-    // X: 50-400 (backyard width)
-    // Y: 20-120 (height above ground)
-    // Z: -250 to -50 (depth)
-    if (x < 50.f || x > 400.f) return false;
-    if (y < 20.f || y > 120.f) return false;
-    if (z > -50.f || z < -250.f) return false;
-    return true;
-}
+// v37: scan window — the dump shows CharObjs living at 0x8000000-0xA0000000.
+// Widen freely; the scan is resumable and budgeted.
+static constexpr uint64_t HEAP_SCAN_LO = 0x1000000ull;
+static constexpr uint64_t HEAP_SCAN_HI = 0xB0000000ull;
+
+// v75: IsBackyardCoord DELETED — yard coordinate gating froze boxes at the
+// yard volume edge; identity comes from vtable+TI validation instead.
 
 // (declared above; was forward-declared here too late for the update loop)
 
@@ -1186,202 +1187,65 @@ static inline bool IsBackyardCoord(float x, float y, float z)
 // Position may be at:
 //  - entity+0x30 directly
 //  - entity+offset -> nested object+0x70 (like CharObj proxy)
+// ---------------------------------------------------------------------------
+// v37 identity scanner (BF4-style enumeration, no statics — GW2's runtime
+// statics are dead: GameContext=-1, backyard mgr=0, camera singleton freed).
+// The gameplay dump PROVED the layout: CharObj vtable 0x14228B380 marks every
+// entity, proxy+0x70 is the position (20/20 unanimous), faction string at
+// co+0x28->+0x30->+0x10 (Zombie_*=team1, Plant_*=team0, _AI/=Tur in name=AI).
+// We find entities by their IDENTITY (the vtable qword) via a resumable
+// budgeted heap scan, and let TryAddEntity's strict validation (marker +
+// TypeInfo + proxy) reject everything else. No coord guessing, no flag pool.
+// ---------------------------------------------------------------------------
 static int ReadBackyardEntities()
 {
     if (!g_imgBase || !g_NtRVM) return 0;
-    
-    char buf[256];
-    static bool logged = false;
-    
-    // Read manager pointer from static RVA
-    uint64_t managerPtr = 0;
-    if (!Rd(g_imgBase + RVA_BACKYARD_MANAGER, &managerPtr, 8) || !managerPtr) {
-        if (!logged) { OILog("BACKYARD: manager ptr is null"); logged = true; }
-        return 0;
+
+    // ---- resumable scan state ------------------------------------------
+    static uint64_t s_cursor = 0;
+    static int      s_hits = 0, s_added = 0, s_rej = 0;
+    static DWORD    s_lastLog = 0;
+
+    DWORD t0 = GetTickCount();
+    uint8_t buf[0x8000];
+
+    while (s_cursor < HEAP_SCAN_HI) {
+        // scan one 32KB page-group per iteration; budget-checked each page
+        uint64_t page = s_cursor & ~0xFFFULL;
+        if (!Rd(page, buf, sizeof(buf))) {
+            s_cursor = (page + 0x100000) & ~0xFFFFFULL;   // skip 1MB on fail
+            if (GetTickCount() - t0 > 6) return 0;
+            continue;
+        }
+        for (int off = 0; off + 8 <= (int)sizeof(buf); off += 8) {
+            uint64_t val;
+            memcpy(&val, buf + off, 8);
+            if (val != g_vaCharObj) continue;
+            s_hits++;
+            uint64_t ent = page + off;
+            // dedup + strict validation inside TryAddEntity
+            bool dup = false;
+            EnterCriticalSection(&g_cs);
+            for (int j = 0; j < g_nEnt; j++)
+                if (g_ent[j].charObj == ent) { dup = true; break; }
+            LeaveCriticalSection(&g_cs);
+            if (!dup && TryAddEntity(ent)) s_added++; else if (!dup) s_rej++;
+        }
+        s_cursor = page + sizeof(buf);
+        if (GetTickCount() - t0 > 6) return 0;   // resume next frame
     }
-    
-    // Read entity list start/end from manager
-    uint64_t listStart = 0, listEnd = 0;
-    Rd(managerPtr + BACKYARD_LIST_START, &listStart, 8);
-    Rd(managerPtr + BACKYARD_LIST_END, &listEnd, 8);
-    
-    if (!listStart || !listEnd || listEnd <= listStart) {
-        if (!logged) {
-            sprintf_s(buf, "BACKYARD: mgr=0x%llX list=0x%llX-0x%llX (invalid)", 
-                managerPtr, listStart, listEnd);
-            OILog(buf);
-            logged = true;
-        }
-        return 0;
+
+    // sweep complete
+    s_cursor = HEAP_SCAN_LO;
+    DWORD now = GetTickCount();
+    if (now - s_lastLog > 5000) {
+        s_lastLog = now;
+        char b[160];
+        snprintf(b, sizeof(b), "ENTSCAN: hits=%d added=%d rej=%d total=%d", s_hits, s_added, s_rej, g_nEnt);
+        OILog(b);
+        s_hits = 0; s_added = 0; s_rej = 0;
     }
-    
-    uint64_t count = (listEnd - listStart) / 8;
-    if (count > 100) count = 100;  // sanity cap
-    
-    if (!logged) {
-        sprintf_s(buf, "BACKYARD: mgr=0x%llX list=0x%llX-%llX (%llu entries)", 
-            managerPtr, listStart, listEnd, count);
-        OILog(buf);
-        logged = true;
-    }
-    
-    // Debug logging for first few entities
-    static int dumpCount = 0;
-    char dbuf[256];
-    
-    int added = 0;
-    EnterCriticalSection(&g_cs);
-    
-    for (uint64_t i = 0; i < count && g_nEnt < MAX_ENT; i++) {
-        uint64_t entPtr = 0;
-        if (!Rd(listStart + i * 8, &entPtr, 8) || !entPtr) continue;
-        
-        // Skip IMAGE-range entries (type descriptors, not entities)
-        if (entPtr >= g_imgBase && entPtr < g_imgBase + 0x10000000) continue;
-        
-        // Must be valid heap pointer
-        if (entPtr < 0x10000 || entPtr > 0x7FFFFFFFFFFF) continue;
-        
-        // Check vtable - must be in IMAGE range
-        uint64_t vtable = 0;
-        if (!Rd(entPtr, &vtable, 8)) continue;
-        if (vtable < g_imgBase || vtable >= g_imgBase + 0x10000000) continue;
-        
-        // Skip duplicates first
-        bool dup = false;
-        for (int j = 0; j < g_nEnt; j++) {
-            if (g_ent[j].charObj == entPtr) { dup = true; break; }
-        }
-        if (dup) continue;
-        
-        // Strategy: find valid position data
-        // 1. Try entity+0x30 directly
-        // 2. Try nested heap objects at entity+offset, then position at nested+0x70 or nested+0x30
-        float foundPos[3] = {0, 0, 0};
-        uint64_t posProxy = 0;  // where to read position from (entity or nested)
-        int posOffset = 0;      // offset within proxy to read position
-        
-        // Method 1: Direct position at +0x30
-        float pos[3];
-        if (Rd(entPtr + 0x30, pos, 12) && IsBackyardCoord(pos[0], pos[1], pos[2]) &&
-            (pos[0] != 0.f || pos[1] != 0.f || pos[2] != 0.f)) {
-            foundPos[0] = pos[0]; foundPos[1] = pos[1]; foundPos[2] = pos[2];
-            posProxy = entPtr;
-            posOffset = 0x30;
-        }
-        
-        // Method 2: Search nested objects if direct didn't work
-        if (posProxy == 0) {
-            // Try common offsets for nested entity/proxy pointers
-            int nestedOffs[] = {0x8, 0x10, 0x18, 0x20, 0x28, 0x38, 0x40, 0x48, 0x50, 0x58, 0x60, 0x68, 0x70, 0x78, 0x80};
-            int posOffs[] = {0x30, 0x70, 0x40, 0x50, 0x80};
-            
-            for (int ni = 0; ni < 15 && posProxy == 0; ni++) {
-                uint64_t nested = 0;
-                if (!Rd(entPtr + nestedOffs[ni], &nested, 8)) continue;
-                if (nested < 0x10000 || nested > 0x7FFFFFFFFFFF) continue;
-                if (nested >= g_imgBase && nested < g_imgBase + 0x10000000) continue;
-                
-                // Check vtable
-                uint64_t nestedVt = 0;
-                if (!Rd(nested, &nestedVt, 8)) continue;
-                if (nestedVt < g_imgBase || nestedVt >= g_imgBase + 0x10000000) continue;
-                
-                // Try position offsets
-                for (int pi = 0; pi < 5 && posProxy == 0; pi++) {
-                    if (Rd(nested + posOffs[pi], pos, 12) && IsBackyardCoord(pos[0], pos[1], pos[2]) &&
-                        (pos[0] != 0.f || pos[1] != 0.f || pos[2] != 0.f)) {
-                        // v36: a +0x70 hit must ALSO carry the hknpCharacterProxy
-                        // signature — identity rotation block (1.0 at +0x40,
-                        // +0x54, +0x68 — heapdump4-verified). Without this the
-                        // scanner accepted random structs whose floats merely
-                        // looked like coords, then read garbage forever after.
-                        if (posOffs[pi] == 0x70) {
-                            float r0, r1, r2;
-                            if (!Rd(nested + 0x40, &r0, 4) || !Rd(nested + 0x54, &r1, 4) ||
-                                !Rd(nested + 0x68, &r2, 4)) continue;
-                            if (r0 != 1.0f || r1 != 1.0f || r2 != 1.0f) continue;
-                        }
-                        foundPos[0] = pos[0]; foundPos[1] = pos[1]; foundPos[2] = pos[2];
-                        posProxy = nested;
-                        posOffset = posOffs[pi];
-                    }
-                }
-            }
-        }
-        
-        // Debug: dump raw floats for first entity to find position
-        if (dumpCount < 2) {
-            uint64_t vtRva = vtable - g_imgBase;
-            sprintf_s(dbuf, "BKENT[%llu]: vt=0x%llX entPtr=0x%llX", i, vtRva, entPtr);
-            OILog(dbuf);
-            
-            // Dump all float triplets that look like coords
-            for (int off = 0x10; off <= 0x100; off += 4) {
-                float f[3];
-                if (Rd(entPtr + off, f, 12)) {
-                    // Log any triplet where at least one value is in reasonable range
-                    if ((f[0] > 50.f && f[0] < 400.f) || (f[1] > 20.f && f[1] < 120.f) ||
-                        (f[2] < -50.f && f[2] > -250.f)) {
-                        sprintf_s(dbuf, "  +0x%X: (%.1f, %.1f, %.1f)%s", 
-                            off, f[0], f[1], f[2],
-                            IsBackyardCoord(f[0], f[1], f[2]) ? " VALID!" : "");
-                        OILog(dbuf);
-                    }
-                }
-            }
-            
-            // Also check nested objects
-            for (int noff = 0x8; noff <= 0x80; noff += 8) {
-                uint64_t nested = 0;
-                if (!Rd(entPtr + noff, &nested, 8)) continue;
-                if (nested < 0x10000 || nested > 0x7FFFFFFFFFFF) continue;
-                if (nested >= g_imgBase && nested < g_imgBase + 0x10000000) continue;
-                
-                uint64_t nestedVt = 0;
-                if (!Rd(nested, &nestedVt, 8)) continue;
-                if (nestedVt < g_imgBase || nestedVt >= g_imgBase + 0x10000000) continue;
-                
-                sprintf_s(dbuf, "  NESTED +0x%X: 0x%llX vt=0x%llX", noff, nested, nestedVt - g_imgBase);
-                OILog(dbuf);
-                
-                for (int poff = 0x10; poff <= 0xA0; poff += 4) {
-                    float f[3];
-                    if (Rd(nested + poff, f, 12)) {
-                        if ((f[0] > 50.f && f[0] < 400.f) || (f[1] > 20.f && f[1] < 120.f) ||
-                            (f[2] < -50.f && f[2] > -250.f)) {
-                            sprintf_s(dbuf, "    +0x%X: (%.1f, %.1f, %.1f)%s",
-                                poff, f[0], f[1], f[2],
-                                IsBackyardCoord(f[0], f[1], f[2]) ? " VALID!" : "");
-                            OILog(dbuf);
-                        }
-                    }
-                }
-            }
-            dumpCount++;
-        }
-        
-        // Skip if no valid position found
-        if (posProxy == 0) continue;
-        
-        // Add entity
-        // Store proxy for position updates, and posOffset in 'state' field (repurposed)
-        Entity& e = g_ent[g_nEnt++];
-        e.charObj = entPtr;
-        e.proxy = posProxy;
-        e.state = (uint64_t)posOffset;  // Store position offset for OnFrame
-        e.x = foundPos[0]; e.y = foundPos[1]; e.z = foundPos[2];
-        e.team = 1;  // enemy for ESP
-        e.ai = true;
-        e.fails = 0;
-        e.lastMove = g_tickNow;
-        added++;
-        // Register for VP calibration with the actual position offset
-        vproj::RecordTarget(posProxy, posOffset);
-    }
-    
-    LeaveCriticalSection(&g_cs);
-    return added;
+    return s_added;
 }
 
 

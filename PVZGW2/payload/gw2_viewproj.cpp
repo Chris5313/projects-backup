@@ -78,12 +78,25 @@ static float g_cam[3];           // camera eye position
 static bool  g_haveMatrix = false;
 static float g_scrW = 1920.f, g_scrH = 1080.f;
 
-// ---- Engine addresses (IDA-verified, 2026-09-17) ----------------------------
-static constexpr uint64_t CAM_STATIC    = 0x142CEE730ull;  // (image-base discovery only)
-static constexpr uint32_t CAM_WORLD_RM  = 0x0;    // v55: found at +0x0, not +0x320!
-static constexpr uint32_t CAM_POS_OFF   = 0x30;   // row 3 of cam-world = camera position
-static constexpr uint32_t PROJ_RM       = 0x360;  // v57: projection at +0x360 (row 0=[1.071,0,0,0] row 1=[0,1.904,0,0])
-static constexpr uint32_t VIEWPROJ_OFF  = 0x360;  // Try reading projection directly
+// ---- Engine addresses (v72: ALL verified against RAW BYTES of the 2026-09-18
+// ---- gameplay F9 dump, tools/verify_chain.py) -------------------------------
+//   CAM_STATIC (image .data)  -> camMgr                     (live, 0x320C4300 in dump)
+//   camMgr + 0x68             -> RenderView[0] data         (0x513B3DF0 in dump)
+//   view + 0x030              -> camera eye (cam-world col 3) (272.3, 64.1, -128.1)
+//   view + 0x360              -> projection (col-major col-vector)
+//   view + 0x460              -> PRECOMPUTED ViewProjection (col-major col-vector;
+//                                w-row annihilates the view's own eye to -0.0000)
+//   view + 0x4A0              -> same VP, row-major transpose copy (engine keeps both)
+// The spankerfield/BF4 read: one static, one deref, one matrix. No chains,
+// no scan, no fallbacks — every offset byte-proven.
+static constexpr uint64_t CAM_STATIC       = 0x142CEE730ull;  // verified: holds LIVE camMgr
+static constexpr uint32_t CAMMGR_VIEWS_OFF = 0x68;           // verified (0x70 was WRONG - that slot
+                                                             //  holds a different object entirely)
+static constexpr uint32_t CAM_WORLD_RM     = 0x0;            // cam-world basis rows; eye at +0x30
+static constexpr uint32_t VIEW_EYE_OFF     = 0x30;           // verified: eye floats
+static constexpr uint32_t PROJ_RM          = 0x360;          // verified: projection
+static constexpr uint32_t VIEWPROJ_OFF     = 0x460;          // verified: precomputed VP (w@eye = -0.0000)
+static constexpr uint32_t VIEWPROJ_OFF_T   = 0x4A0;          // verified: row-major transpose copy
 // v58: POLL-FIRST, fresh-gated. IDA re-verified 2026-09-17 (analyzed IDB):
 //  - 0x1409E2B80 per-frame view update+submit walks views in [ctx+416..424),
 //    builds proj, and for EVERY view writes view+0x3E0 (proj) + view+0x3F0,
@@ -95,10 +108,9 @@ static constexpr uint32_t VIEWPROJ_OFF  = 0x360;  // Try reading projection dire
 //    object with fresh@0x144/proj@0x3E0 IS the view object the engine uses.
 // So the poll path below reads EXACTLY what the engine's own renderer reads,
 // gated by the engine's own freshness flag. No hooks required.
-static constexpr uintptr_t VIEW_SUBMIT_RVA   = 0x9E2B80;  // (hook optional, unused by poll)
-static constexpr uint32_t  CAM_MGR_VIEW_OFF  = 0x70;      // camMgr+0x70 -> view object
-static constexpr uint32_t  VIEW_FRESH_OFF    = 0x144;     // byte: 1 = proj rewritten this frame
-static constexpr uint64_t  ACTIVE_VIEW_STATIC = 0x142D05410ull; // engine's active view
+// v72: DEAD constants removed (ACTIVE_VIEW_STATIC 0x142D05410 -> freed singleton in
+// MEM_RESERVE; CAM_MGR_VIEW_OFF 0x70 -> wrong slot; fresh-byte 0x144 -> copy-drift).
+// The true chain above replaces every one of them.
 static uintptr_t g_imgBase = 0;
 
 // ---- Math helpers ----------------------------------------------------------
@@ -336,9 +348,12 @@ static float ScoreCand(const float vpCM[16], const float (*tpos)[3], int nT, con
         }
     }
     if (front == 0 || onscreen == 0) return -1.f;
-    // depth spread must be sane for the MAIN view (shadow cascades collapse
-    // everything into a thin slab)
-    if (zmax - zmin < 2.f) return -1.f;
+    // Depth spread rejects shadow cascades (they collapse everything into a
+    // thin slab) — but spread needs >=3 targets to mean anything. With fewer
+    // targets the gate was mathematically impossible to pass (v61 bugfix:
+    // nT=1 => zmax==zmin => score -1 forever = never locks). Structure +
+    // eye-solvability are the remaining filters for small nT.
+    if (nT >= 3 && zmax - zmin < 2.f) return -1.f;
     return (float)onscreen + 0.001f*(zmax - zmin);
 }
 
@@ -360,6 +375,14 @@ static bool ScanConstantBuffers(float (*tpos)[3], int nT, const float* cdist)
     for (int s = 0; s < 5 && total < 24; s++)
         for (int i = 0; i < 16 && total < 24; i++)
             if (perStage[s][i]) cbs[total++] = perStage[s][i];
+
+    // v61: until first lock, log scan stats every 5s — silence is a symptom,
+    // not a state (cbs=0 means the game unbinds before Present → need Map hook)
+    static DWORD s_lastDiag = 0;
+    DWORD now = GetTickCount();
+    bool diag = (now - s_lastDiag > 5000);
+    if (diag) s_lastDiag = now;
+    float bestScore = -1.f;
 
     bool got = false;
     for (int i = 0; i < total; i++) {
@@ -400,6 +423,7 @@ static bool ScanConstantBuffers(float (*tpos)[3], int nT, const float* cdist)
             Transp16(c.vp);
             float sB = ScoreCand(c.vp, tpos, nT, cdist);
             float s = (sA >= sB) ? sA : sB;
+            if (s > bestScore) bestScore = s;
             if (s > 0.f) {
                 float eye[3];
                 if (SolveEye(c.vp, eye)) {
@@ -425,6 +449,11 @@ static bool ScanConstantBuffers(float (*tpos)[3], int nT, const float* cdist)
         }        g_ctx->Unmap(g_stage[si].staging, 0);
         b->Release();
         if (got) break;
+    }
+    if (diag && !got) {
+        char b[160];
+        snprintf(b, sizeof(b), "CBSCAN: cbs=%d best=%.3f nT=%d", total, bestScore, nT);
+        oilog::Line(b);
     }
     return got;
 }
@@ -527,7 +556,7 @@ bool Init(void* device, void* immediateContext)
 {
     SetD3DTargets(device, immediateContext);
 
-    oilog::Line("VPINIT: v60 CB-scraper camera (offset-free)");
+    oilog::Line("VPINIT: v71 spankerfield-via-scan (static root dead: MEM_RESERVE)");
     HMODULE nt = GetModuleHandleA("ntdll.dll");
     if (nt) g_NtRVM = (pfn_NtRVM)GetProcAddress(nt, "NtReadVirtualMemory");
     if (!g_NtRVM) {
@@ -547,167 +576,136 @@ bool Init(void* device, void* immediateContext)
         return false;
     }
 
-    // v59: POLL with full data validation (no fresh-byte gate - see PollActiveView).
+    // v75: poll mode IS the camera source (PublishActiveView, byte-verified chain
+    // + BF4-style view lock-on so slot rotations can't blank the matrix)
     g_pollMode = true;
     char buf[128];
-    snprintf(buf, sizeof(buf), "VPINIT: v60 CB scraper (imgBase=%p dev=%p ctx=%p)", (void*)g_imgBase, (void*)g_dev, (void*)g_ctx);
+    snprintf(buf, sizeof(buf), "VPINIT: v75 lock-on (CAM_STATIC->+0x68->VP@0x460, pinned view)");
     oilog::Line(buf);
 
     oilog::Line("VPINIT: ready");
     return true;
 }
 
-// ---- v42: POLL camera via correct pointer chain -----------------------------
-// v58: FRESH-GATED read of the view object. Two candidate sources per frame:
-//   A) active-view static 0x142D05410 -> view (what the engine's HUD reads)
-//   B) camMgr (CAM_STATIC) + 0x70     -> view
-// A view is published only when its fresh byte (view+0x144) is 1 — the exact
-// flag the engine sets (0x1409E36ED) right after writing proj (view+0x3E0).
-// The cam-world matrix lives at view+0x0 (live-verified: eye tracked the
-// player); proj at view+0x360 (1.071/1.904 live-verified). We build
-// VP = inv(camWorld) * proj ourselves from those two — proven math from v57.
-static void PollActiveView()
-{
-    if (g_cbLocked) return;   // v60: CB camera took over - stop poll overrides
-    static DWORD s_diagLog = 0;
-    static int s_failReason = 0;
-    DWORD now = GetTickCount();
-    bool doDiag = (now - s_diagLog > 5000);
-
-    // --- candidate A: engine's active-view static ---------------------------
-    uint64_t view = 0;
-    uint64_t avStatic = ACTIVE_VIEW_STATIC;
-    Rd(ACTIVE_VIEW_STATIC, &view, 8);
-    bool fromActive = (view >= 0x10000ull);
-
-    // --- candidate B: camMgr+0x70 -------------------------------------------
-    if (!fromActive) {
-        uint64_t camMgr = 0;
-        if (!Rd(CAM_STATIC, &camMgr, 8) || camMgr < 0x10000ull) {
-            if (doDiag && s_failReason != 1) {
-                s_failReason = 1; s_diagLog = now;
-                oilog::Line("POLL: fail - camMgr + active-static empty");
-            }
-            return;
-        }
-        if (!Rd(camMgr + CAM_MGR_VIEW_OFF, &view, 8) || view < 0x10000ull) {
-            if (doDiag && s_failReason != 2) {
-                s_failReason = 2; s_diagLog = now;
-                char b[128];
-                snprintf(b, sizeof(b), "POLL: fail - view ptr (camMgr=0x%llX)", camMgr);
-                oilog::Line(b);
-            }
-            return;
-        }
-    }
-
-    // v59 GATE: heap-dump forensics showed 50+ view objects carry the same
-    // proj block, and the byte at +0x144 is NOT a bool in the copies (values
-    // 27/6/144/54... = flag bits). The live WRITE (IDA 0x1409E36ED) sets it
-    // to 1 on the engine's own object, but copies drift. So instead of the
-    // fresh byte we gate on DATA QUALITY: cam-world must be orthonormal with
-    // a sane eye (BuildViewRM) and proj must be a real perspective
-    // (ValidProjRM). A menu/intro camera has eye=(0,1,0) or y=-14.8 - all
-    // rejected. This is deterministic and needs no flag semantics.
-
-    // v57 math: cam-world @ view+0x0, proj @ view+0x360, VP = V * P
-    // ALSO verify the eye from the SECOND cam-world copy @+0x2F0 matches
-    // (heap-forensics: live view has camWorld dup @+0x2F0 basis+eye@+0x2F0+0x30);
-    // mismatch = stale copy -> skip.
-    float cw[16], viewRM[16], projRM[16], vpRM[16];
-
-    if (!Rd(view + CAM_WORLD_RM, cw, 64)) {
-        if (doDiag && s_failReason != 3) { s_failReason = 3; s_diagLog = now; oilog::Line("POLL: fail - cam-world read"); }
-        return;
-    }
-
-    float eye[3];
-    if (!BuildViewRM(cw, viewRM, eye)) {
-        if (doDiag && s_failReason != 3) { s_failReason = 3; s_diagLog = now; oilog::Line("POLL: fail - view build"); }
-        return;
-    }
-
-    if (!Rd(view + PROJ_RM, projRM, 64)) {
-        if (doDiag && s_failReason != 3) { s_failReason = 3; s_diagLog = now; oilog::Line("POLL: fail - proj read"); }
-        return;
-    }
-
-    // Full perspective validation (P[14]=-1 row-convention, near>0, scale ok)
-    if (!ValidProjRM(projRM)) {
-        if (doDiag && s_failReason != 3) {
-            s_failReason = 3; s_diagLog = now;
-            char b[160];
-            snprintf(b, sizeof(b), "POLL: fail - proj invalid (%.3f, %.3f, P14=%.3f)",
-                projRM[0], projRM[5], projRM[14]);
-            oilog::Line(b);
-        }
-        return;
-    }
-
-    MatMulRM(viewRM, projRM, vpRM);
-    TransposeRMtoCM(vpRM, g_viewProj);
-
-    g_cam[0] = eye[0]; g_cam[1] = eye[1]; g_cam[2] = eye[2];
-
-    g_haveMatrix = true;
-    g_hookFrames++;
-    s_failReason = 0;
-
-    static bool s_announced = false;
-    if (!s_announced) {
-        s_announced = true;
-        char buf[256];
-        snprintf(buf, sizeof(buf), "VP: v59 VALIDATED eye=(%.1f,%.1f,%.1f) proj[0]=%.3f proj[5]=%.3f",
-            g_cam[0], g_cam[1], g_cam[2], projRM[0], projRM[5]);
-        oilog::Line(buf);
-    }
-
-    // periodic health line (every 10 s)
-    static DWORD s_vpLogTime = 0;
-    if (now - s_vpLogTime > 10000) {
-        s_vpLogTime = now;
-        char b[160];
-        snprintf(b, sizeof(b), "VP_OK: eye=(%.1f,%.1f,%.1f) frames=%ld src=%s",
-            g_cam[0], g_cam[1], g_cam[2], g_hookFrames, fromActive ? "active" : "camMgr");
-        oilog::Line(b);
-    }
-}
+// v72: TryDirectVP / PollActiveView / memory-scan DELETED. Their chains were
+// provably wrong (active static -> freed MEM_RESERVE singleton; camMgr+0x70 ->
+// an unrelated object at 0x7B739F0 — that wrong-slot poller was the one
+// "succeeding" stg=100 and feeding W2S garbage). The one true chain lives in
+// PublishActiveView below.
+static int g_directStage = 0;    // last PublishActiveView stage (0 idle, 100 ok)
 
 
-// ---- engine-hook camera source ---------------------------------------------
-
-// Publish VP from the ACTIVE view object the game's own consumers read.
-// Engine-written matrices for this frame by construction.
+// ---- v72: TRUE SPANKEFIELD — THE camera source ------------------------------
+// Chain byte-verified against the 2026-09-18 gameplay dump (tools/verify_chain.py):
+//   CAM_STATIC holds LIVE camMgr -> +0x68 -> RenderView[0] (eye 272,64,-128)
+//   view+0x460 precomputed VP: w-row annihilates the view's own eye (-0.0000)
+// Every rejection is logged with values so nothing can fail silently.
 static void PublishActiveView()
 {
-    // v45: Same as PollActiveView - read pre-computed VP from +0x460
+    static DWORD s_diag = 0;
+    DWORD nowd = GetTickCount();
+    bool diag = (nowd - s_diag > 5000);
+    if (diag) s_diag = nowd;
+
+    auto Fail = [&](int stage, const char* msg, uint64_t a = 0, float v0 = 0.f) {
+        g_directStage = stage;
+        if (diag) {
+            char bb[200];
+            snprintf(bb, sizeof(bb), "CAM-FAIL: %s (a=%llX v0=%.4f)", msg, (unsigned long long)a, v0);
+            oilog::Line(bb);
+        }
+        return;
+    };
+
     uint64_t camMgr = 0;
-    if (!Rd(CAM_STATIC, &camMgr, 8) || camMgr < 0x10000ull) return;
-    
-    uint64_t view = 0;
-    if (!Rd(camMgr + CAM_MGR_VIEW_OFF, &view, 8) || view < 0x10000ull) return;
+    if (!Rd(CAM_STATIC, &camMgr, 8) || camMgr < 0x1000000ull || (camMgr & 7))
+        return Fail(1, "camMgr-static", camMgr);
 
-    float vpRM[16];
-    if (!Rd(view + VIEWPROJ_OFF, vpRM, 64)) return;
+    // v75: BF4-style LOCK-ON. BF4/spankerfield caches GameRenderer->RenderView ONCE
+    // and then reads VP from the same object every frame — it never re-walks the
+    // chain per frame. v73's probe-only loop did re-walk, so whenever the engine
+    // rotated helper passes through +0x68/+0x58 (CAM-SKIP s0=0 s1=0 windows in
+    // the log) we stopped publishing and ESP kept drawing the STALE matrix —
+    // boxes froze on screen and drifted with the camera. The locked view object
+    // itself is NOT disturbed by the rotation (it still holds the engine's last
+    // main-camera VP) — so pin it and ride through rotation windows.
+    auto TryView = [&](uint64_t v, float* b, float* e)->bool {
+        if (v < 0x1000000ull || (v & 7)) return false;
+        if (!Rd(v + VIEWPROJ_OFF, b, 64)) return false;
+        for (int i = 0; i < 16; i++) if (!(b[i] > -1e6f && b[i] < 1e6f)) return false;
+        if (fabsf(b[0]) < 0.05f || fabsf(b[0]) > 8.f) return false;   // shadow/depth scales
+        if (fabsf(b[5]) < 0.05f || fabsf(b[5]) > 8.f) return false;
+        if (!Rd(v + VIEW_EYE_OFF, e, 12) || !Finite3(e)) return false;
+        float elen = sqrtf(e[0]*e[0] + e[1]*e[1] + e[2]*e[2]);
+        if (elen < 15.f || elen > 100000.f) return false;             // dummy/menu views
+        float w = e[0]*b[3] + e[1]*b[7] + e[2]*b[11] + b[15];
+        if (fabsf(w) >= 5.f) return false;                            // not self-consistent
+        return true;
+    };
 
-    // Quick sanity check
-    if (fabsf(vpRM[0]) < 0.1f || fabsf(vpRM[5]) < 0.1f) return;
+    static uint64_t s_lockView = 0;
+    static int      s_miss = 0;
+    float vp[16], eye[3];
+    bool got = false;
+    int  slotUsed = -1;
+    float wLast = 0.f;
 
-    TransposeRMtoCM(vpRM, g_viewProj);
-
-    // Get camera position
-    float cw[16];
-    if (Rd(view + CAM_WORLD_RM, cw, 64)) {
-        g_cam[0] = cw[12]; g_cam[1] = cw[13]; g_cam[2] = cw[14];
+    // 1) cache hit (the common case): read VP straight from the locked view
+    if (s_lockView && TryView(s_lockView, vp, eye)) {
+        got = true; s_miss = 0; slotUsed = 0;
+    } else if (s_lockView) {
+        // transient rotation — keep last good VP; re-resolve after 30 dead frames
+        if (++s_miss > 30) { s_lockView = 0; s_miss = 0; }
     }
 
+    // 2) re-resolve: probe both slots (0x68 + twin 0x58)
+    if (!got) {
+        static const uint32_t kViewSlots[2] = { CAMMGR_VIEWS_OFF, 0x58 };
+        uint64_t seen[2] = { 0, 0 };
+        for (int si = 0; si < 2; si++) {
+            uint64_t v = 0;
+            if (!Rd(camMgr + kViewSlots[si], &v, 8)) { seen[si] = 1; continue; }
+            seen[si] = v;
+            float b[16], e[3];
+            if (!TryView(v, b, e)) continue;
+            memcpy(vp, b, 64); memcpy(eye, e, 12);
+            got = true; slotUsed = si;
+            wLast = e[0]*b[3] + e[1]*b[7] + e[2]*b[11] + b[15];
+            if (v != s_lockView) {
+                s_lockView = v; s_miss = 0;
+                static DWORD s_ann = 0;
+                if (nowd - s_ann > 10000) {   // rate-limited re-lock announce
+                    s_ann = nowd;
+                    char bb[192];
+                    snprintf(bb, sizeof(bb),
+                        "VP: SPANKEFIELD LOCK view=%llX slot=%d eye=(%.1f,%.1f,%.1f) b00=%.3f b11=%.3f w@eye=%.4f",
+                        v, si, eye[0], eye[1], eye[2], b[0], b[5], wLast);
+                    oilog::Line(bb);
+                }
+            }
+            break;
+        }
+        if (!got && diag) {
+            char bb[200];
+            snprintf(bb, sizeof(bb), "CAM-SKIP: s0=%llX s1=%llX",
+                (unsigned long long)seen[0], (unsigned long long)seen[1]);
+            oilog::Line(bb);
+            return Fail(2, "no-valid-view (0x68+0x58)", (seen[0] << 16) | (seen[1] & 0xFFFF));
+        }
+    }
+
+    if (!got) { g_directStage = 2; return; }   // rotation window: keep stale VP
+
+    memcpy(g_viewProj, vp, sizeof(g_viewProj));
+    g_cam[0]=eye[0]; g_cam[1]=eye[1]; g_cam[2]=eye[2];
     g_haveMatrix = true;
     g_hookFrames++;
+    g_directStage = 100 + slotUsed;   // 100 = locked/0x68, 101 = twin 0x58
 }
 
 // Per-frame view update+submit. We run AFTER the original so the matrices
 // it just wrote (proj@view+0x3E0 etc.) are the finished ones for this frame.
-// v58: unused while poll-first is active (kept for manual re-enable).
+// v72: unused (poll publishes every frame); kept for optional re-enable.
 [[maybe_unused]] static uint64_t __fastcall HookViewSubmit(uint64_t a1)
 {
     uint64_t r = g_origSubmit(a1);
@@ -763,28 +761,22 @@ void OnFrame()
     bool doCamLog = (now - s_camLog > 5000);
     if (doCamLog) s_camLog = now;
 
-    if (g_pollMode) {
-        __try { PollActiveView(); } __except (EXCEPTION_EXECUTE_HANDLER) {}
-    }
+    // v72: THE camera source. One chain, byte-verified against the gameplay
+    // dump (tools/verify_chain.py): CAM_STATIC -> camMgr -> +0x68 -> RenderView[0]
+    // -> precomputed VP @ +0x460. Nothing else. The old triple-poller mess
+    // (scan / active-static / wrong-slot pollers) is deleted — the wrong-slot
+    // poller was the one "succeeding" (stg=100) and feeding W2S garbage.
+    __try { PublishActiveView(); } __except (EXCEPTION_EXECUTE_HANDLER) {}
 
-    // v60: constant-buffer camera — runs every frame, hysteresis in the score
-    {
-        static float tpos[64][3];
-        static float cdist[64];
-        int n = 0;
-        for (int i = 0; i < g_nT && n < 64; i++) {
-            if (g_t[i].x == 0.f && g_t[i].y == 0.f && g_t[i].z == 0.f) continue;
-            tpos[n][0] = g_t[i].x; tpos[n][1] = g_t[i].y; tpos[n][2] = g_t[i].z;
-            cdist[n] = 0.f;
-            n++;
-        }
-        __try { ScanConstantBuffers(tpos, n, cdist); } __except (EXCEPTION_EXECUTE_HANDLER) {}
-    }
+    // v65: CB scraper REMOVED from the frame path. It never produced a CB
+    // (game unbinds before Present — cbs=0) and its CopyResource/Map churn on
+    // the game's immediate context caused VEH faults in d3d11 (C0000005 @
+    // d3d11+0x1113FC). The direct +0x460 read is the only camera source now.
 
     if (doCamLog) {
-        char buf[120];
-        snprintf(buf, sizeof(buf), "VP_STATE: hook=%d poll=%d frames=%ld nT=%d posOk=%d",
-            g_hookInstalled ? 1 : 0, g_pollMode ? 1 : 0, g_hookFrames, g_nT, posOk);
+        char buf[140];
+        snprintf(buf, sizeof(buf), "VP_STATE: hook=%d poll=%d frames=%ld nT=%d posOk=%d stg=%d",
+            g_hookInstalled ? 1 : 0, g_pollMode ? 1 : 0, g_hookFrames, g_nT, posOk, g_directStage);
         oilog::Line(buf);
         if (!g_hookInstalled && !g_pollMode)
             oilog::Line("VP: no camera source active");
